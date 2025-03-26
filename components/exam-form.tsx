@@ -22,9 +22,12 @@ type SubjectEntry = {
   examScope: string
 }
 
+// 初期エントリー用の固定ID
+const INITIAL_ENTRY_ID = "initial-subject-entry"
+
 export function ExamForm() {
   const [subjectEntries, setSubjectEntries] = useState<SubjectEntry[]>([
-    { id: uuidv4(), subject: "", examScope: "" },
+    { id: INITIAL_ENTRY_ID, subject: "", examScope: "" },
   ])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()

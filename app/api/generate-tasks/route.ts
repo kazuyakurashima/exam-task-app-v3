@@ -35,7 +35,7 @@ async function processAIResponse(subjectEntry: SubjectEntry) {
           {
             parts: [
               {
-                text: `科目: ${subject}\n試験範囲: ${examScope}\n\n上記の試験範囲に基づいて、中高生向けの効果的な学習タスクを5-8個程度作成してください。各タスクには、タイトル、詳細な説明、優先度（high/medium/low）を含めてください。以下のJSON形式で返してください:
+                text: `科目: ${subject}\n試験範囲: ${examScope}\n\n上記の試験範囲に基づいて、中高生向けの効果的な学習タスクを5-8個程度作成してください。タスク作成にあたり、参考書の記載があればその参考書の効果的な活用方法を調べた上で作成してください。各タスクには、タイトル、詳細な説明、優先度（high/medium/low）を含めてください。以下のJSON形式で返してください:
                 [
                   {
                     "title": "タスクのタイトル",
