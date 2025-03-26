@@ -7,7 +7,7 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">定期考査タスク分解アプリ</h1>
-          <p className="text-gray-600">試験範囲を入力するだけで、AIがあなたの学習タスクを自動生成します</p>
+          <p className="text-gray-600">試験範囲を入力すれば、AIがあなたの学習タスクを自動生成します</p>
         </header>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
