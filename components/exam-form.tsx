@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -26,12 +25,17 @@ type SubjectEntry = {
 const INITIAL_ENTRY_ID = "initial-subject-entry"
 
 export function ExamForm() {
+  const [mounted, setMounted] = useState(false)
   const [subjectEntries, setSubjectEntries] = useState<SubjectEntry[]>([
     { id: INITIAL_ENTRY_ID, subject: "", examScope: "" },
   ])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const { setTasks } = useTaskStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // 科目エントリーを追加
   const addSubjectEntry = () => {
@@ -110,6 +114,10 @@ export function ExamForm() {
     }
   }
 
+  if (!mounted) {
+    return null
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {subjectEntries.map((entry, index) => (
@@ -133,6 +141,7 @@ export function ExamForm() {
             <div className="space-y-2">
               <Label htmlFor={`subject-${entry.id}`}>科目</Label>
               <Select
+                defaultValue={entry.subject}
                 value={entry.subject}
                 onValueChange={(value) => updateSubject(entry.id, value)}
                 disabled={loading}
