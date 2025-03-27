@@ -19,6 +19,13 @@ type Task = {
   subject: string
 }
 
+// 優先度の順序を定義
+const PRIORITY_ORDER = {
+  high: 0,
+  medium: 1,
+  low: 2,
+}
+
 export function TaskList() {
   const { tasks, toggleTask, getCompletionPercentage } = useTaskStore()
   const [activeTab, setActiveTab] = useState<string>("all")
@@ -38,6 +45,19 @@ export function TaskList() {
 
   // フィルタリングされたタスク
   const filteredTasks = activeTab === "all" ? tasks : tasks.filter((task) => task.subject === activeTab)
+
+  // タスクを優先度順にソート
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    // まず優先度でソート
+    const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+    if (priorityDiff !== 0) return priorityDiff
+    
+    // 優先度が同じ場合は完了状態でソート（未完了を先に）
+    if (a.completed !== b.completed) return a.completed ? 1 : -1
+    
+    // それ以外の場合はタイトルでソート
+    return a.title.localeCompare(b.title)
+  })
 
   // 科目別の完了率を計算
   const getSubjectCompletionPercentage = (subject: string) => {
@@ -86,7 +106,7 @@ export function TaskList() {
             )}
 
             <div className="space-y-4">
-              {filteredTasks.map((task) => (
+              {sortedTasks.map((task) => (
                 <TaskItem key={task.id} task={task} onToggle={toggleTask} />
               ))}
             </div>
