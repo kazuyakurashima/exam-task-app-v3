@@ -26,15 +26,14 @@ const INITIAL_ENTRY_ID = "initial-subject-entry"
 
 export function ExamForm() {
   const [mounted, setMounted] = useState(false)
-  const [subjectEntries, setSubjectEntries] = useState<SubjectEntry[]>([
-    { id: INITIAL_ENTRY_ID, subject: "", examScope: "" },
-  ])
+  const [subjectEntries, setSubjectEntries] = useState<SubjectEntry[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const { setTasks } = useTaskStore()
 
   useEffect(() => {
     setMounted(true)
+    setSubjectEntries([{ id: INITIAL_ENTRY_ID, subject: "", examScope: "" }])
   }, [])
 
   // 科目エントリーを追加
@@ -115,7 +114,17 @@ export function ExamForm() {
   }
 
   if (!mounted) {
-    return null
+    return (
+      <div className="space-y-4">
+        <Card className="p-4">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-24 bg-gray-200 rounded"></div>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -141,7 +150,6 @@ export function ExamForm() {
             <div className="space-y-2">
               <Label htmlFor={`subject-${entry.id}`}>科目</Label>
               <Select
-                defaultValue={entry.subject}
                 value={entry.subject}
                 onValueChange={(value) => updateSubject(entry.id, value)}
                 disabled={loading}
