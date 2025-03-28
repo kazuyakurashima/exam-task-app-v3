@@ -1,6 +1,6 @@
 import { ExamForm } from "@/components/exam-form"
 import { TaskList } from "@/components/task-list"
-import { auth } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
