@@ -1,14 +1,10 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
 
-// Clerkの認証ミドルウェアを設定
-// 静的ファイルやNext.jsの内部ルートを除外し、APIルートを含める
+// This example protects all routes including api/trpc routes
+// Please edit this to allow other routes to be public as needed.
+// See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your middleware
 export default clerkMiddleware()
 
 export const config = {
-  matcher: [
-    // 静的ファイルやNext.jsの内部ルートを除外
-    "/((?!.*\\..*|_next).*)",
-    // APIルートを含める
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 } 
