@@ -166,9 +166,9 @@ async function processAIResponse(subjectEntry: SubjectEntry) {
 }
 
 // デモ用のモックタスクを生成する関数
-function generateMockTasks(subject: string, examScope: string): Task[] {
+function generateMockTasks(subject: string, examScope: string): TaskType[] {
   const priorities: ("high" | "medium" | "low")[] = ["high", "medium", "low"]
-  const tasks: Task[] = []
+  const tasks: TaskType[] = []
 
   // 科目に基づいたタスクのテンプレート
   const taskTemplates: Record<string, { titles: string[]; descriptions: string[] }> = {
