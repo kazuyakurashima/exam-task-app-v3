@@ -1,5 +1,14 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { v4 as uuidv4 } from "uuid"
+import { auth } from "@clerk/nextjs/server"
+import { type Task as TaskType } from "@/lib/task-store"
+
+// デバッグログ用関数
+function debugLog(label: string, data: any) {
+  console.log(`=== ${label} ===`);
+  console.log(typeof data === 'object' ? JSON.stringify(data, null, 2) : data);
+  console.log('===================');
+}
 
 // タスクの型定義
 type Task = {
@@ -18,11 +27,16 @@ type SubjectEntry = {
   examScope: string
 }
 
+// 環境変数でデバッグモードを制御
+const DEBUG = process.env.DEBUG === 'true';
+
 // AIからのレスポンスを処理する関数
 async function processAIResponse(subjectEntry: SubjectEntry) {
   const { subject, examScope } = subjectEntry
 
   try {
+    debugLog('API Request', { subject, examScope });
+    
     // Gemini APIを呼び出す
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent", {
       method: "POST",
@@ -35,44 +49,87 @@ async function processAIResponse(subjectEntry: SubjectEntry) {
           {
             parts: [
               {
-                text: `あなたは、勉強をサポートするプロの学習コーチです。以下の試験範囲に基づいて、効率よく勉強できるように「具体的なタスク」に分けてください。
+                text: `あなたは勉強をサポートするプロの学習コーチです。以下の学習内容範囲から、中高生が効果的に勉強できるようにタスクに分けてください。
 
 科目: ${subject}
 試験範囲: ${examScope}
 
-以下のルールに従ってください：
-1. タスク合計が21未満になるように設計してください。
-2. 1つの科目のタスクは最大7までにしてください。
-3. 重要なものは優先順位を高くしてください。
-4. 具体的参考書名が記載されているときは、その参考書の学習方法を検索してそれを参照して回答してください。
+以下の要件に従って、具体的な学習タスクを作成してください：
 
-以下のJSON形式で返してください:
+1. タスクの基本要件：
+   - タスク合計が21未満
+   - 1つの科目のタスクは7以下
+   - 参考書が記載されている場合は、その参考書の学習方法を参照
+
+2. タスクの優先度設定：
+   - high: 重要な暗記項目、基本的な理解が必要な項目、頻出問題
+   - medium: 応用的な理解、演習問題、復習項目
+   - low: 補足的な知識、発展的な学習項目
+
+3. 学習タイプの考慮：
+   - 暗記が必要な項目
+   - 理解が必要な項目
+   - 演習が必要な項目
+   - これらのバランスを考慮してタスクを設定
+
+4. 出力形式：
+以下の形式のJSON配列のみを出力してください。説明文や追加のテキストは一切不要です：
 [
   {
-    "title": "タスクのタイトル",
-    "description": "タスクの詳細な説明",
-    "priority": "high" または "medium" または "low"
-  },
-  ...
-]`,
+    "title": "具体的なタスクのタイトル",
+    "description": "具体的な学習手順や方法",
+    "priority": "high"
+  }
+]
+
+注意：
+- 余分な説明やテキストは一切不要です
+- JSON配列のみを出力してください
+- 各タスクは必ずtitle、description、priorityを含めてください
+- priorityは必ず"high"、"medium"、"low"のいずれかにしてください`,
               },
             ],
           },
         ],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.8,
+          topK: 40
+        }
       }),
     })
 
     const data = await response.json()
+    debugLog('Gemini API Response', data);
 
-    // Geminiからのレスポンスを解析
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const textContent = data.candidates[0].content.parts[0].text
+      const textContent = data.candidates[0].content.parts[0].text || '';
+      debugLog('Raw Text Content', textContent);
 
-      // JSONを抽出（テキスト内にJSONが埋め込まれている場合に対応）
-      const jsonMatch = textContent.match(/\[\s*\{.*\}\s*\]/s)
-      if (jsonMatch) {
-        try {
-          const tasksData = JSON.parse(jsonMatch[0])
+      // テキスト全体からJSONを抽出
+      let jsonString = textContent;
+      
+      // もし余分なテキストがある場合、JSON部分のみを抽出
+      const startIndex = textContent.indexOf('[');
+      const endIndex = textContent.lastIndexOf(']') + 1;
+      
+      if (startIndex !== -1 && endIndex > startIndex) {
+        jsonString = textContent.substring(startIndex, endIndex);
+        debugLog('Extracted JSON String', jsonString);
+      }
+      
+      try {
+        const tasksData = JSON.parse(jsonString);
+        debugLog('Parsed JSON Data', tasksData);
+        
+        // データの構造を検証
+        const isValidStructure = Array.isArray(tasksData) && tasksData.length > 0 && tasksData.every(task => 
+          task.title && 
+          task.description && 
+          ['high', 'medium', 'low'].includes(task.priority)
+        );
+        
+        if (isValidStructure) {
           // 各タスクにIDと完了フラグ、科目を追加
           const tasks: Task[] = tasksData.map((task: any) => ({
             id: uuidv4(),
@@ -84,21 +141,26 @@ async function processAIResponse(subjectEntry: SubjectEntry) {
           }))
 
           return tasks
-        } catch (parseError) {
-          console.error("JSON解析エラー:", parseError)
-          // JSONの解析に失敗した場合はモックデータを使用
-          return generateMockTasks(subject, examScope)
+        } else {
+          console.warn("タスクデータの構造が不正です。モックデータを使用します。");
+          debugLog('Invalid Task Structure', tasksData);
         }
+      } catch (parseError: any) {
+        console.error("JSON解析エラー:", parseError);
+        debugLog('JSON Parse Error', { error: parseError.message, jsonString });
+        // JSONの解析に失敗した場合はモックデータを使用
+        return generateMockTasks(subject, examScope)
       }
     }
 
     // レスポンスの形式が期待と異なる場合はモックデータを使用
-    console.warn("Gemini APIからの応答が期待と異なります。モックデータを使用します。")
+    console.warn("Gemini APIからの応答が期待と異なります。モックデータを使用します。");
     return generateMockTasks(subject, examScope)
-  } catch (error) {
-    console.error("AI API Error:", error)
+  } catch (error: any) {
+    console.error("AI API Error:", error);
+    debugLog('API Call Error', error);
     // エラーが発生した場合はモックデータを使用
-    console.warn("Gemini APIでエラーが発生しました。モックデータを使用します。")
+    console.warn("Gemini APIでエラーが発生しました。モックデータを使用します。");
     return generateMockTasks(subject, examScope)
   }
 }
@@ -305,22 +367,37 @@ function generateMockTasks(subject: string, examScope: string): Task[] {
 }
 
 export async function POST(request: NextRequest) {
+  const { userId } = await auth()
+
+  if (!userId) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
+  }
+
   try {
     const { subjectEntries } = await request.json()
 
-    if (!subjectEntries || !Array.isArray(subjectEntries) || subjectEntries.length === 0) {
-      return NextResponse.json({ error: "科目と試験範囲を入力してください" }, { status: 400 })
+    // バリデーション
+    if (!Array.isArray(subjectEntries) || subjectEntries.length === 0) {
+      return NextResponse.json(
+        { error: "科目データが正しく入力されていません" },
+        { status: 400 }
+      )
     }
 
-    // 各科目のタスクを生成して結合
-    const allTasksPromises = subjectEntries.map((entry) => processAIResponse(entry))
-    const allTasksArrays = await Promise.all(allTasksPromises)
-    const allTasks = allTasksArrays.flat()
+    // 各科目のタスクを生成
+    const allTasks: TaskType[] = []
+    for (const entry of subjectEntries) {
+      const tasks = generateMockTasks(entry.subject, entry.examScope)
+      allTasks.push(...tasks)
+    }
 
     return NextResponse.json({ tasks: allTasks })
   } catch (error) {
-    console.error("Error:", error)
-    return NextResponse.json({ error: "タスク生成中にエラーが発生しました" }, { status: 500 })
+    console.error("Error generating tasks:", error)
+    return NextResponse.json(
+      { error: "タスクの生成中にエラーが発生しました" },
+      { status: 500 }
+    )
   }
 }
 
